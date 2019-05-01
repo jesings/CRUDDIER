@@ -4,6 +4,7 @@
 .global deg2rad
 .global cos2
 .global sin2
+.global exponent
 .data
     pi: .double 3.141592658979
 .bss
@@ -53,19 +54,35 @@ deg2rad://converts degrees to radians
     divsd %xmm1, %xmm0
     ret
 .macro fputrig whichfunc, reg=0
-    sub $4, %rsp
-    cvtsd2ss %xmm\reg, %xmm\reg
-    vmovss %xmm\reg, (%rsp)
-    fld (%rsp)
+    sub $8, %rsp
+    vmovsd %xmm\reg, (%rsp)
+    fldl (%rsp)
     f\whichfunc
-    fstp (%rsp)
-    vmovss  (%rsp), %xmm\reg
-    cvtss2sd %xmm\reg, %xmm\reg
-    add $4, %rsp
+    fstpl (%rsp)
+    vmovsd  (%rsp), %xmm\reg
+    add $8, %rsp
 .endm
 cos2:
     fputrig cos
     ret
 sin2:
     fputrig sin
+    ret
+exponent://take xmm0 to the power of xmm1
+    sub $8, %rsp
+    vmovsd %xmm1, (%rsp)
+    fldl (%rsp)
+    vmovsd %xmm0, (%rsp)
+    fldl (%rsp)
+    fyl2x
+    fld1
+    fld %st(1)
+    fprem
+    f2xm1
+    faddp
+    fscale
+    fstpl (%rsp)
+    vmovsd (%rsp), %xmm0
+    add $8, %rsp
+    fstp %st(0)
     ret

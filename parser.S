@@ -110,11 +110,14 @@
     cspopm: .asciz "pop"
     clear: .asciz "clear"
     minval: .double -inf
+    double10: .double 10
+
 .bss
     buf: .zero 1024
     curchar: .byte 0
     args: .zero 64
     lens: .zero 64
+    decimals: .zero 64
     streamdone: .byte 0
 .text
 rotatel://Rotates by either x, y, or z, depending -- complex args parsing necessary
@@ -203,7 +206,7 @@ inpstream://file descriptor in parsefd(%rip), returns a string in %rax, or 0 if 
     movb $1, streamdone(%rip)
     ret
     noteof:
-    cmp $'\n',curchar(%rip)
+    cmpb $0xA,curchar(%rip)
     jne nchar
     dec %rcx
     movb $0, (%r9,%rcx)
@@ -269,7 +272,8 @@ mstrcmp://rdi is string 1, rsi is string 2
     yend:
     mov $1, %rax
     ret
-convert2: //string in rdi, length in rsi, converts a string to an integer, output in rax
+convert2: //string in rdi, length in rsi, converts a string to a floating point, output in xmm0
+    xor %r9, %r9//okay so r9 counts where the decimal point is, only increment it when necessary
     xor %rdx, %rdx
     xor %rcx, %rcx
     xor %rax, %rax
@@ -279,8 +283,23 @@ convert2: //string in rdi, length in rsi, converts a string to an integer, outpu
     cvt2i:
     imul $10, %rax
     movb (%rdi,%rdx), %cl
+    test %r9, %r9
+    jnz alreadydecimal
+    cmpb $0x2E,%cl
+    jne nodecimal
+    push %rdx
+    xor %rdx, %rdx
+    mov $10, %r10
+    idiv %r10
+    pop %rdx
+    inc %r9
+    jmp yesdecimal
+    alreadydecimal:
+    inc %r9
+    nodecimal:
     subb $0x30, %cl
     add %rcx, %rax
+    yesdecimal:
     inc %rdx
     cmp %rdx, %rsi
     jne cvt2i
@@ -288,6 +307,18 @@ convert2: //string in rdi, length in rsi, converts a string to an integer, outpu
     jne afterneg
     neg %rax
     afterneg:
+    cmp $1, %r9
+    jle nodecimal2
+    dec %r9
+    cvtsi2sd %r9, %xmm1
+    vmovsd double10(%rip), %xmm0
+    call exponent
+    breakpoint:
+    cvtsi2sd %rax, %xmm1
+    vdivsd %xmm0, %xmm1, %xmm0
+    ret
+    nodecimal2:
+    cvtsi2sd %rax, %xmm0
     ret
 convertargs://number of args is in %rdi, converts all the args to ints, rather than pointers
     dec %rdi
@@ -300,10 +331,11 @@ convertargs://number of args is in %rdi, converts all the args to ints, rather t
     shl $3, %rdi
     add %r8, %rdi
     mov (%rdi), %rdi
+    push %r8
     call convert2
+    pop %r8
     pop %rdi
-    cvtsi2sd %rax, %xmm0
-    movsd %xmm0, (%r8,%rdi,8)
+    vmovsd %xmm0, (%r8,%rdi,8)
     jmp convertargs
     convertaend:
     ret

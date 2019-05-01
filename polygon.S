@@ -48,97 +48,96 @@ addtri://vertices packed x,y,z in %ymm0, %ymm1, %ymm2
 .endm
 drawtri://first point in ymm0, second point in ymm1, third point in ymm2, draws triangle
     push %r15
-    rdrand %r15
+    rdrand %r15//get random color for tri
     sub $136,%rsp
     vmovups %ymm0,(%rsp)
     vmovups %ymm1,32(%rsp)
     vmovups %ymm2,64(%rsp)
-    call crossproduct
-    call normalize
+    call crossproduct//calculate cross product of 2 vectors
+    call normalize//normalize resultant vectors
     vmovups viewvect(%rip), %ymm1
-    call dotproduct
+    call dotproduct//take the dot product of the view vector and the normalized vector
     vcomisd zero(%rip), %xmm0
-    ja enddraw
+    ja enddraw//cull if the resultant vector is facing backwards
+    //backfaces culled
     vmovups (%rsp), %ymm0
     vmovups 32(%rsp), %ymm1
     vmovups 64(%rsp), %ymm2
-    call bmt
+    call bmt//sort points 1,2,3 by bottom,middle,top
     vmovups %ymm0, (%rsp)
     vmovups %ymm1, 32(%rsp)
     vmovups %ymm2, 64(%rsp)
 
     movsd (%rsp), %xmm4
     movsd 32(%rsp), %xmm6
-    movsd 64(%rsp), %xmm8
+    movsd 64(%rsp), %xmm8//x coords of these points in xmm 4,6,8
     cvtsd2si 8(%rsp), %r8
     cvtsd2si 40(%rsp), %r9
-    cvtsd2si 72(%rsp), %r10
+    cvtsd2si 72(%rsp), %r10//y coords of these points in registers r 8,9,10
     movsd 16(%rsp), %xmm0
     movsd 48(%rsp), %xmm1
-    movsd 80(%rsp), %xmm2
+    movsd 80(%rsp), %xmm2//z coords of these points in xmmm 0,1,2
 
     mov %r10, %r11
     sub %r8, %r11
-    cvtsi2sd %r11, %xmm13
+    cvtsi2sd %r11, %xmm13//let xmm13 be the total difference in y
     vsubsd %xmm4, %xmm8, %xmm10
-    vdivsd %xmm13, %xmm10, %xmm10
+    vdivsd %xmm13, %xmm10, %xmm10//divide total difference in x by total difference in y, store in xmm 10 (This is the x step for the long side)
     vsubsd %xmm0, %xmm2, %xmm12
-    vdivsd %xmm13, %xmm12, %xmm2
+    vdivsd %xmm13, %xmm12, %xmm2//divide total difference in z by total difference in y, store in xmm2 (This is the z step for the long side)
     mov %r9, %r11
     sub %r8, %r11
-    cvtsi2sd %r11, %xmm13
+    cvtsi2sd %r11, %xmm13//let xmm13 be the difference in y on the lower short side
     vsubsd %xmm4, %xmm6, %xmm11
-    vdivsd %xmm13, %xmm11, %xmm11
+    vdivsd %xmm13, %xmm11, %xmm11//divide lower difference in x by lower difference in y, store in xmm11 (the x step for the bottom leg)
     vsubsd %xmm0, %xmm1, %xmm12
-    vdivsd %xmm13, %xmm12, %xmm13
-    movsd %xmm4, %xmm3
-    movsd %xmm0, %xmm1
+    vdivsd %xmm13, %xmm12, %xmm13//divide lower difference in z by lower difference in y, store in xmm13 (the z step for the bottom leg)
+    movsd %xmm4, %xmm3//have x counters at xmm4 and xmm3 for long leg and bottom leg respectively
+    movsd %xmm0, %xmm1//have z counters at xmm0 and xmm1 for long leg and bottom leg respectively
  
-    //?here do from bottom to middle ✓
-    //+= (Tx-Bx)/(Ty-By)
     bottommiddleloop:
     cmp %r8, %r9
-    jle bmiddletoploop
-    mov %r15, %rdi
+    jle bmiddletoploop//if we've reached the end of the bottom leg, go to top leg section
+    mov %r15, %rdi//put variable guys for bresenham2
     cvtsd2si %xmm4, %rsi
     cvtsd2si %xmm3, %rdx
     mov %r8,  %rcx
     store012
     call bresenham2
     restore012
-    inc %r8
-    vaddsd %xmm10, %xmm4, %xmm4
-    vaddsd %xmm11, %xmm3, %xmm3
-    vaddsd %xmm2, %xmm0, %xmm0
-    vaddsd %xmm13, %xmm1, %xmm1
-    jmp bottommiddleloop
+    inc %r8//inrcrement y counter
+    vaddsd %xmm10, %xmm4, %xmm4//increment long leg x counter by long leg x step
+    vaddsd %xmm11, %xmm3, %xmm3//increment lower leg x counter by lower leg x step
+    vaddsd %xmm2, %xmm0, %xmm0//increment long leg z counter by long leg z step
+    vaddsd %xmm13, %xmm1, %xmm1//increment lower leg z counter by lower leg z step
+    jmp bottommiddleloop//loop
     bmiddletoploop:
     mov %r10, %r11
     sub %r9, %r11
-    cvtsi2sd %r11, %xmm12
+    cvtsi2sd %r11, %xmm12//let xmm12 be the difference in y on the upper short side
     vsubsd %xmm6, %xmm8, %xmm11
-    vdivsd %xmm12, %xmm11, %xmm11
+    vdivsd %xmm12, %xmm11, %xmm11//divide upper difference in x by upper difference in y, store in xmm11 (the x step for the upper leg)
     movsd 48(%rsp), %xmm14
-    movsd %xmm14, %xmm1
+    movsd %xmm14, %xmm1//set long leg z counter to initial value (not really necessary)
     movsd 80(%rsp), %xmm15
     vsubsd %xmm14, %xmm15, %xmm13
-    vdivsd %xmm12, %xmm13, %xmm13
+    vdivsd %xmm12, %xmm13, %xmm13//divide lower difference in z by lower difference in y, store in xmm13 (the z step for the bottom leg)
     middletoploop:
     cmp %r9, %r10
-    jle enddraw
-    mov %r15, %rdi
+    jle enddraw//if we've reached the end of the bottom leg, finish
+    mov %r15, %rdi//put variable guys for bresenham2
     cvtsd2si %xmm4, %rsi
     cvtsd2si %xmm6, %rdx
     mov %r9, %rcx
     store012
     call bresenham2
     restore012
-    inc %r9
-    vaddsd %xmm10, %xmm4, %xmm4
-    vaddsd %xmm11, %xmm6, %xmm6
-    vaddsd %xmm2, %xmm0, %xmm0
-    vaddsd %xmm13, %xmm1, %xmm1
-    jmp middletoploop
+    inc %r9//inrcrement y counter
+    vaddsd %xmm10, %xmm4, %xmm4//increment long leg x counter by long leg x step
+    vaddsd %xmm11, %xmm6, %xmm6//increment upper leg x counter by upper leg x step
+    vaddsd %xmm2, %xmm0, %xmm0//increment long leg z counter by long leg z step
+    vaddsd %xmm13, %xmm1, %xmm1//increment upper leg z counter by upper leg z step
+    jmp middletoploop//loop
     enddraw:
     add $136, %rsp
     pop %r15

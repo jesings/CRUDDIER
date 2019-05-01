@@ -107,6 +107,8 @@ freematrix://frees the memory of matrix %rdi, no return value
     call free@PLT//array freed
     movq matrixstart(%rip), %rdi
     call free@PLT//pseudo-struct freed
+    afterfree:
+    xor $0, %rax
     ret
 
 printmatrix://prints matrix %rdi, no return value

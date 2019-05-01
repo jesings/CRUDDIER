@@ -188,11 +188,11 @@ plot:
     pltdone:
     addsd %xmm2, %xmm0
     ret
-bresenham2: //something like this: bresenham(int color,int x0,int x1, int y, double z0, double z1), color is a hex value
+bresenham2: //something like this: bresenham(int color,int x0,int x1, int y, double z0, double z1), color is a hex value LINES HAVE TO BE VERTICAL
     neg %rcx
-    add $511, %rcx
+    add $511, %rcx//get proper y coord, by making it go from the bottom rather than the top
     cmp $511, %rcx
-    ja endb2
+    ja endb2//if the y coordinate is greater than 511 (higher than the drawing window) don't draw 
     cmp %rsi, %rdx
     jge noswap2
     xchg %rsi, %rdx
@@ -201,33 +201,32 @@ bresenham2: //something like this: bresenham(int color,int x0,int x1, int y, dou
     movsd %xmm1, %xmm0
     movsd (%rsp), %xmm1
     add $8, %rsp
-    noswap2:
-    mov %edi, %eax//put color into rax register for stosd
+    noswap2://If x2>x1, swap xs and zs
+    mov %edi, %eax//put color into rax register for storage in places
     lea data(%rip), %rdi//find proper destination
     imul $512,%rcx//get y coord offset
     add %rsi, %rcx
     mov %rdx, %r8
     sub %rsi, %r8
-    //inc %r8
-    cvtsi2sd %r8, %xmm2
+    cvtsi2sd %r8, %xmm2//store x difference
     vsubsd %xmm0, %xmm1, %xmm1
-    vdivsd %xmm2, %xmm1, %xmm1
-    lea zbuffer(%rip), %r9
-    startb2:
+    vdivsd %xmm2, %xmm1, %xmm1//divide z difference by x difference to get z step
+    lea zbuffer(%rip), %r9//get destination into r9
+    startb2://loop
     cmp %rsi, %rdx
-    jl endb2
+    jl endb2//if we've done all the xs, end
     cmp $511, %rsi
-    jg endb2
+    jg endb2//if our x is to the right of the view screen, end
     cmp $0, %rsi
-    jl oof
+    jl oof//if our x has yet to reach the view screen, continue until it does, if it ever does
     vcomisd (%r9,%rcx,8),%xmm0
-    jna oof
-    vmovsd %xmm0, (%r9,%rcx,8)
-    mov %eax, (%rdi,%rcx,4)
+    jna oof//if our z coordinate is too great, don't draw, continue to next pixel
+    vmovsd %xmm0, (%r9,%rcx,8)//put z into z buffer
+    mov %eax, (%rdi,%rcx,4)//put pixel color in location
     oof:
-    inc %rcx
-    inc %rsi
-    vaddsd %xmm1, %xmm0, %xmm0
-    jmp startb2
+    inc %rcx//increment x draw location
+    inc %rsi//increment x
+    vaddsd %xmm1, %xmm0, %xmm0//increment z by z step
+    jmp startb2//loop
     endb2:
     ret
