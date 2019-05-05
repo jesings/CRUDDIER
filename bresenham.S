@@ -7,6 +7,7 @@
     .align 8
     x: .quad 0
     y: .quad 0
+    truncator: .double 1000
 .bss
     x0: .quad 0
     x1: .quad 0
@@ -170,6 +171,14 @@ plot:
     add x(%rip), %r8
     mov %r8, %r9
     lea zbuffer(%rip), %rcx
+
+    push %rax//hacky pseudo-smoothing
+    vmulsd truncator(%rip), %xmm0, %xmm0
+    cvtsd2si %xmm0, %rax
+    cvtsi2sd %rax, %xmm0
+    vdivsd truncator(%rip), %xmm0, %xmm0
+    pop %rax
+
     comisd (%rcx, %r9,8), %xmm0
     jb pltdone
     shl $2, %r8
@@ -219,6 +228,14 @@ bresenham2: //something like this: bresenham(int color,int x0,int x1, int y, dou
     jg endb2//if our x is to the right of the view screen, end
     cmp $0, %rsi
     jl oof//if our x has yet to reach the view screen, continue until it does, if it ever does
+
+    push %rax//hacky pseudo-smoothing
+    vmulsd truncator(%rip), %xmm0, %xmm0
+    cvtsd2si %xmm0, %rax
+    cvtsi2sd %rax, %xmm0
+    vdivsd truncator(%rip), %xmm0, %xmm0
+    pop %rax
+
     vcomisd (%r9,%rcx,8),%xmm0
     jna oof//if our z coordinate is too great, don't draw, continue to next pixel
     vmovsd %xmm0, (%r9,%rcx,8)//put z into z buffer

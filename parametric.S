@@ -110,16 +110,16 @@ makespline://xmm0-7: x0,y0,x1,y1,x2,y2,x3,y3 - Works for both bezier and hermite
     mov %rsi, tempmatrixG(%rip)
     mov tempmatrixX(%rip), %rsi
     mov (%rsi), %rsi
-    movsd %xmm0, 0(%rsi)
+    movsd %xmm0, 0(%rsi)//put x coordinates in the xcoord matrix
     movsd %xmm2, 8(%rsi)
     movsd %xmm4, 16(%rsi)
-    movsd %xmm6, 24(%rsi)//put x coordinates in the xcoord matrix
+    movsd %xmm6, 24(%rsi)
     mov tempmatrixY(%rip), %rsi
     mov (%rsi), %rsi
-    movsd %xmm1, 0(%rsi)
+    movsd %xmm1, 0(%rsi)//put y coordinates in the ycoord matrix
     movsd %xmm3, 8(%rsi)
     movsd %xmm5, 16(%rsi)
-    movsd %xmm7, 24(%rsi)//put y coordinates in the ycoord matrix
+    movsd %xmm7, 24(%rsi)
     push %rdi
     mov tempmatrix4(%rip), %rdi
     mov tempmatrixG(%rip), %rax
@@ -148,7 +148,6 @@ makespline://xmm0-7: x0,y0,x1,y1,x2,y2,x3,y3 - Works for both bezier and hermite
     movsd %xmm0, 8(%rdx)
     bezl://loop over the points of the curve
     lea staging(%rip), %rdx
-
     movsd (%rdx), %xmm0
     movsd %xmm0, 16(%rdx)
     movsd 8(%rdx), %xmm0

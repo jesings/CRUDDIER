@@ -279,7 +279,6 @@ makesphere://matrix-ifies the tris for a sphere
     inc %rcx
     cmp $50, %rcx
 .endm
-
 gensphere://generates the points for a sphere
     sub $32, %rsp
     movsd %xmm0, (%rsp)
@@ -303,7 +302,6 @@ gensphere://generates the points for a sphere
     add $32, %rsp
     mov tempmatrixG(%rip), %rax
     ret
-
 gentorus://generates the points for a torus
     movsd %xmm0, %xmm5
     mov $2550, %rdi

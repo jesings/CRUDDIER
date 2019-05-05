@@ -111,7 +111,6 @@
     clear: .asciz "clear"
     minval: .double -inf
     double10: .double 10
-
 .bss
     buf: .zero 1024
     curchar: .byte 0
@@ -339,7 +338,6 @@ convertargs://number of args is in %rdi, converts all the args to ints, rather t
     jmp convertargs
     convertaend:
     ret
-    
 getargs: //input in %rdi, count in %rsi, output is in args
     xor %rax, %rax
     dec %rsi

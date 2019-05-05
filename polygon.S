@@ -1,7 +1,14 @@
 .global addtri
 .global drawtris
+.global surfacenormal
 .data
-    viewvect: .double 0, 1, 0, 0
+    viewvect: .double 0, 0, 1, 0
+    Ka: .double .1, .1, .1, 0
+    Kd: .double .5, .5, .5, 0
+    Ks: .double .5, .5, .5, 0
+    lightloc: .double -.5, -.75, -1
+    lightcolor: .double 0, 255, 255, 0
+    surfacenormal: .double 0, 0, 0, 0
 .bss
 .text
 addtri://vertices packed x,y,z in %ymm0, %ymm1, %ymm2
@@ -22,14 +29,6 @@ addtri://vertices packed x,y,z in %ymm0, %ymm1, %ymm2
     call addpoint
     add $64, %rsp
     ret
-.macro bresenhamcaller a,b,c,d//calls bresenham from a list of stack offsets in order to draw a line
-    mov $0xffffff, %rdi
-    movsxd \a(%rsp), %rsi
-    movsxd \b(%rsp), %rdx
-    movsxd \c(%rsp), %rcx
-    movsxd \d(%rsp), %r8
-    call bresenham
-.endm
 .macro store012
     movsd %xmm0, 96(%rsp)
     movsd %xmm1, 104(%rsp)
@@ -48,18 +47,25 @@ addtri://vertices packed x,y,z in %ymm0, %ymm1, %ymm2
 .endm
 drawtri://first point in ymm0, second point in ymm1, third point in ymm2, draws triangle
     push %r15
-    rdrand %r15//get random color for tri
     sub $136,%rsp
     vmovups %ymm0,(%rsp)
     vmovups %ymm1,32(%rsp)
     vmovups %ymm2,64(%rsp)
+    //cull backfaces
     call crossproduct//calculate cross product of 2 vectors
     call normalize//normalize resultant vectors
-    vmovups viewvect(%rip), %ymm1
+    vmovupd %ymm0, surfacenormal(%rip)
+    vmovupd viewvect(%rip), %ymm1
     call dotproduct//take the dot product of the view vector and the normalized vector
     vcomisd zero(%rip), %xmm0
     ja enddraw//cull if the resultant vector is facing backwards
-    //backfaces culled
+    vmovupd Ka(%rip), %ymm0
+    vmovupd Kd(%rip), %ymm1
+    vmovupd Ks(%rip), %ymm2
+    vmovupd lightloc(%rip), %ymm3
+    vmovupd lightcolor(%rip), %ymm4
+    call illumination
+
     vmovups (%rsp), %ymm0
     vmovups 32(%rsp), %ymm1
     vmovups 64(%rsp), %ymm2
@@ -68,15 +74,15 @@ drawtri://first point in ymm0, second point in ymm1, third point in ymm2, draws 
     vmovups %ymm1, 32(%rsp)
     vmovups %ymm2, 64(%rsp)
 
-    movsd (%rsp), %xmm4
+    movsd (%rsp), %xmm4//x coords of these points in xmm 4,6,8
     movsd 32(%rsp), %xmm6
-    movsd 64(%rsp), %xmm8//x coords of these points in xmm 4,6,8
-    cvtsd2si 8(%rsp), %r8
+    movsd 64(%rsp), %xmm8
+    cvtsd2si 8(%rsp), %r8//y coords of these points in registers r 8,9,10
     cvtsd2si 40(%rsp), %r9
-    cvtsd2si 72(%rsp), %r10//y coords of these points in registers r 8,9,10
-    movsd 16(%rsp), %xmm0
+    cvtsd2si 72(%rsp), %r10
+    movsd 16(%rsp), %xmm0//z coords of these points in xmmm 0,1,2
     movsd 48(%rsp), %xmm1
-    movsd 80(%rsp), %xmm2//z coords of these points in xmmm 0,1,2
+    movsd 80(%rsp), %xmm2
 
     mov %r10, %r11
     sub %r8, %r11
