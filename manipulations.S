@@ -97,6 +97,9 @@ genrotate://rotates around axis specified in rax, matrix specified in rdi
     call *%rax
     mov %r12, %rdi
     mov matrixstart(%rip), %rsi
+    mov 24(%rsi), %rax
+    xchg %rax, 24(%rdi)
+    mov  %rax, 24(%rsi)
     mov (%rsi), %rax
     xchg %rax, (%rdi)
     mov %rax, (%rsi)
